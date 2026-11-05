@@ -8,10 +8,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- FIREBASE SDK CONFIGURADO -->
+    <!-- FIREBASE SDK CONFIGURADO COM FIRESTORE E STORAGE -->
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
       import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-analytics.js";
+      import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+      import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-storage.js";
 
       const firebaseConfig = {
         apiKey: "AIzaSyAoA9CYkWOYEc9ZrX3dJjorEyXsMXmIfnU",
@@ -25,7 +27,23 @@
 
       const app = initializeApp(firebaseConfig);
       const analytics = getAnalytics(app);
-      console.log("Firebase inicializado com sucesso!");
+      const db = getFirestore(app);
+      const storage = getStorage(app);
+
+      // Disponibiliza globalmente para as funções do site
+      window.db = db;
+      window.storage = storage;
+      window.collection = collection;
+      window.addDoc = addDoc;
+      window.getDocs = getDocs;
+      window.deleteDoc = deleteDoc;
+      window.doc = doc;
+      window.ref = ref;
+      window.uploadBytes = uploadBytes;
+      window.getDownloadURL = getDownloadURL;
+
+      console.log("Firebase Firestore e Storage conectados com sucesso!");
+      carregarDadosDoFirebase();
     </script>
 
     <style>
@@ -51,7 +69,6 @@
     <!-- BARRA SUPERIOR / HEADER -->
     <header class="bg-[#1a2b3c] text-white sticky top-0 z-50 shadow-md">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <!-- Logo e Título -->
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center font-bold text-xl text-white shadow">
                     <i class="fa-solid fa-church"></i>
@@ -62,7 +79,6 @@
                 </div>
             </div>
 
-            <!-- Botões de Acesso / Login -->
             <div class="flex items-center space-x-3">
                 <button onclick="abrirModalLogin()" id="btn-login-status" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded text-sm font-semibold transition flex items-center space-x-2">
                     <i class="fa-solid fa-user-lock"></i>
@@ -72,7 +88,7 @@
         </div>
     </header>
 
-    <!-- PAINEL DE CONTROLE DO ADM (Visível apenas para sisialeane@gmail.com) -->
+    <!-- PAINEL DE CONTROLE DO ADM -->
     <div id="painel-adm" class="hidden bg-amber-100 border-b border-amber-300 p-4 sticky top-[61px] z-40 shadow-inner">
         <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
             <div class="flex items-center space-x-2 text-amber-900 font-bold text-sm">
@@ -83,14 +99,8 @@
                 <button onclick="abrirModalNovoBanner()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded text-xs font-bold transition">
                     <i class="fa-solid fa-plus"></i> Novo Banner
                 </button>
-                <button onclick="ativarModoEdicao()" class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded text-xs font-bold transition">
-                    <i class="fa-solid fa-pen-to-square"></i> Editar Banner
-                </button>
-                <button onclick="removerBannerAtual()" class="bg-red-700 hover:bg-red-800 text-white px-3 py-1.5 rounded text-xs font-bold transition">
-                    <i class="fa-solid fa-trash-can"></i> Remover Banner
-                </button>
                 <button onclick="abrirModalStory()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-3 py-1.5 rounded text-xs font-bold transition">
-                    <i class="fa-solid fa-circle-plus"></i> Postar Story (Foto/Vídeo)
+                    <i class="fa-solid fa-circle-plus"></i> Postar Story
                 </button>
                 <button onclick="abrirModalNoticia()" class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1.5 rounded text-xs font-bold transition">
                     <i class="fa-solid fa-newspaper"></i> Nova Postagem
@@ -102,45 +112,36 @@
         </div>
     </div>
 
-    <!-- BANNER PRINCIPAL / COM PASSAGEM AUTOMÁTICA E SETAS NAS EXTREMIDADES -->
+    <!-- BANNER PRINCIPAL -->
     <section id="banner-principal" class="relative h-[450px] md:h-[550px] flex items-end banner-bg text-white shadow-lg" style="background-image: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.2)), url('https://images.unsplash.com/photo-1543165365-0723ac524888?auto=format&fit=crop&w=1200&q=80');">
-        
-        <!-- Seta Esquerda -->
         <button onclick="mudarBanner(-1)" class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white w-12 h-12 rounded-full flex items-center justify-center transition z-20 text-lg">
             <i class="fa-solid fa-chevron-left"></i>
         </button>
-
-        <!-- Seta Direita -->
         <button onclick="mudarBanner(1)" class="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white w-12 h-12 rounded-full flex items-center justify-center transition z-20 text-lg">
             <i class="fa-solid fa-chevron-right"></i>
         </button>
-
         <div class="container mx-auto px-12 pb-12 z-10">
             <span id="banner-tag" class="bg-amber-600 text-white text-xs font-bold px-3 py-1 rounded uppercase tracking-wider">Série 509 Reforma Protestante</span>
             <h2 id="banner-titulo" class="text-3xl md:text-5xl font-extrabold mt-3 leading-tight">A Reforma que Ainda Precisa Acontecer em Nós</h2>
-            <p id="banner-desc" class="text-sm md:text-base text-gray-200 mt-2 max-w-2xl">No dia 31 de outubro de 1517, o professor Martinho Lutero apresentou 95 teses para provocar uma reflexão...</p>
+            <p id="banner-desc" class="text-sm md:text-base text-gray-200 mt-2 max-w-2xl">No dia 31 de outubro de 1517, o professor Martinho Lutero apresentou 95 teses...</p>
         </div>
     </section>
 
     <!-- MENU DE ATALHOS RÁPIDOS -->
     <section class="container mx-auto px-4 -mt-8 relative z-20">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white rounded-lg shadow-xl p-4 border border-gray-100">
-            <!-- 1. Administração -->
             <a href="#" onclick="abrirPaginaAdministracao(); return false;" class="flex items-center space-x-3 p-3 rounded hover:bg-amber-50 transition border border-gray-100">
                 <i class="fa-solid fa-folder-open text-amber-600 text-2xl"></i>
                 <div class="text-left"><span class="block font-bold text-sm">Administração</span><span class="text-xs text-gray-500">Documentos e Atas</span></div>
             </a>
-            <!-- 2. Contatos -->
             <a href="https://www.instagram.com/valdemirlemosbj?exln=dWZ4cWZnM2RibHB1" target="_blank" class="flex items-center space-x-3 p-3 rounded hover:bg-amber-50 transition border border-gray-100">
                 <i class="fa-solid fa-address-book text-amber-600 text-2xl"></i>
                 <div class="text-left"><span class="block font-bold text-sm">Contatos</span><span class="text-xs text-gray-500">Fale conosco</span></div>
             </a>
-            <!-- 3. Nosso Link -->
-            <a href="https://www.google.com/search?q=igreja+presbiteriana+renovada+de+belo+jardim&oq=igreja+presbiteriana+renovada+de+belo+jardim&gs_lcrp=EgZjaHJvbWUqBggAEEUYOzIGCAAQRRg7MgcIARAAGO8FMgcIAhAAGO8FMgcIAxAAGO8FMgcIBBAAGO8F0gEIMjUzMWowajSoAg6wAgE&client=ms-android-xiaomi-rvo2&sourceid=chrome-mobile&source=chrome.ob&ie=UTF-8#ebo=0" target="_blank" class="flex items-center space-x-3 p-3 rounded hover:bg-amber-50 transition border border-gray-100">
+            <a href="https://www.google.com/search?q=igreja+presbiteriana+renovada+de+belo+jardim" target="_blank" class="flex items-center space-x-3 p-3 rounded hover:bg-amber-50 transition border border-gray-100">
                 <i class="fa-solid fa-link text-amber-600 text-2xl"></i>
                 <div class="text-left"><span class="block font-bold text-sm">Nosso Link</span><span class="text-xs text-gray-500">Acessos úteis</span></div>
             </a>
-            <!-- 4. Mapa da Igreja -->
             <a href="https://www.google.com/maps/search/?api=1&query=Igreja+Presbiteriana+Renovada+de+Belo+Jardim+Rua+Francisca+Maria+dos+Passos+Belo+Jardim+PE" target="_blank" class="flex items-center space-x-3 p-3 rounded hover:bg-amber-50 transition border border-gray-100">
                 <i class="fa-solid fa-map-location-dot text-amber-600 text-2xl"></i>
                 <div class="text-left"><span class="block font-bold text-sm">Mapa da Igreja</span><span class="text-xs text-gray-500">Ver no Google Maps</span></div>
@@ -148,7 +149,7 @@
         </div>
     </section>
 
-    <!-- SEÇÃO DE STORIES COM LINHA RGB ACIMA -->
+    <!-- SEÇÃO DE STORIES -->
     <section class="mt-12 bg-white pt-2 pb-6 shadow-sm">
         <div class="linha-rgb mb-4"></div>
         <div class="container mx-auto px-4">
@@ -156,18 +157,8 @@
                 <i class="fa-solid fa-circle-notch text-amber-600 animate-spin"></i>
                 <span>Stories da Comunidade</span>
             </h3>
-            <!-- Lista de Stories -->
             <div id="lista-stories" class="flex space-x-4 overflow-x-auto pb-2 scrollbar-none">
-                <!-- Story Padrão 1 (Foto) -->
-                <div class="story-item flex-shrink-0 text-center cursor-pointer group relative" onclick="abrirStoryCheio('https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=800&q=80', 'Culto Jovem', 'image')">
-                    <div class="w-20 h-20 rounded-full p-[3px] bg-gradient-to-tr from-amber-500 to-indigo-600 shadow-md group-hover:scale-105 transition">
-                        <img src="https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=200&q=80" class="w-full h-full object-cover rounded-full border-2 border-white">
-                    </div>
-                    <span class="text-xs font-semibold mt-1 block w-20 truncate">Culto Jovem</span>
-                    <button onclick="event.stopPropagation(); removerStory(this)" class="btn-del-story hidden absolute top-0 right-0 bg-red-600 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center shadow-md hover:bg-red-700" title="Remover Story">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
+                <!-- Carregado via Firebase -->
             </div>
         </div>
     </section>
@@ -176,50 +167,14 @@
     <main class="container mx-auto px-4 py-12">
         <h3 class="text-2xl font-bold mb-6 border-l-4 border-amber-600 pl-3">Agora na IPRB</h3>
         <div id="grid-noticias" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Notícia 1 -->
-            <div class="noticia-item bg-white rounded-lg shadow overflow-hidden border border-gray-100 cursor-pointer group relative" onclick="abrirNoticiaCheia('https://images.unsplash.com/photo-1491841550275-adcbec37285e?auto=format&fit=crop&w=1000&q=80', 'IPRB News · 26/10/2026', 'A Reforma que Ainda Precisa Acontecer em Nós', 'No dia 31 de outubro de 1517, o professor Martinho Lutero apresentou 95 teses...')">
-                <img src="https://images.unsplash.com/photo-1491841550275-adcbec37285e?auto=format&fit=crop&w=600&q=80" alt="Notícia" class="w-full h-48 object-cover group-hover:scale-105 transition duration-300">
-                <div class="p-5">
-                    <span class="text-xs font-bold text-amber-600 uppercase">IPRB News · 26/10/2026</span>
-                    <h4 class="font-bold text-lg mt-1 mb-2">A Reforma que Ainda Precisa Acontecer em Nós</h4>
-                    <p class="text-sm text-gray-600 line-clamp-2">No dia 31 de outubro de 1517, o professor Martinho Lutero apresentou 95 teses...</p>
-                </div>
-                <button onclick="event.stopPropagation(); removerNoticia(this)" class="btn-del-noticia hidden absolute top-2 right-2 bg-red-600 text-white w-8 h-8 rounded-full text-sm flex items-center justify-center shadow-lg hover:bg-red-700" title="Remover Postagem">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            </div>
-            <!-- Notícia 2 -->
-            <div class="noticia-item bg-white rounded-lg shadow overflow-hidden border border-gray-100 cursor-pointer group relative" onclick="abrirNoticiaCheia('https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1000&q=80', 'IPRB News · 12/10/2026', 'Dia das Crianças com Programação Especial', 'Instrua a criança no caminho em que deve andar, e mesmo quando envelhecer...')">
-                <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=600&q=80" alt="Notícia" class="w-full h-48 object-cover group-hover:scale-105 transition duration-300">
-                <div class="p-5">
-                    <span class="text-xs font-bold text-amber-600 uppercase">IPRB News · 12/10/2026</span>
-                    <h4 class="font-bold text-lg mt-1 mb-2">Dia das Crianças com Programação Especial</h4>
-                    <p class="text-sm text-gray-600 line-clamp-2">Instrua a criança no caminho em que deve andar, e mesmo quando envelhecer...</p>
-                </div>
-                <button onclick="event.stopPropagation(); removerNoticia(this)" class="btn-del-noticia hidden absolute top-2 right-2 bg-red-600 text-white w-8 h-8 rounded-full text-sm flex items-center justify-center shadow-lg hover:bg-red-700" title="Remover Postagem">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            </div>
-            <!-- Notícia 3 -->
-            <div class="noticia-item bg-white rounded-lg shadow overflow-hidden border border-gray-100 cursor-pointer group relative" onclick="abrirNoticiaCheia('https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=1000&q=80', 'Semana Pastoral · 05/10/2026', 'Levando o Cuidado para Além das Quatro Paredes', 'A saúde mental tem ocupado um espaço cada vez mais importante na sociedade...')">
-                <img src="https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=600&q=80" alt="Notícia" class="w-full h-48 object-cover group-hover:scale-105 transition duration-300">
-                <div class="p-5">
-                    <span class="text-xs font-bold text-amber-600 uppercase">Semana Pastoral · 05/10/2026</span>
-                    <h4 class="font-bold text-lg mt-1 mb-2">Levando o Cuidado para Além das Quatro Paredes</h4>
-                    <p class="text-sm text-gray-600 line-clamp-2">A saúde mental tem ocupado um espaço cada vez mais importante na sociedade...</p>
-                </div>
-                <button onclick="event.stopPropagation(); removerNoticia(this)" class="btn-del-noticia hidden absolute top-2 right-2 bg-red-600 text-white w-8 h-8 rounded-full text-sm flex items-center justify-center shadow-lg hover:bg-red-700" title="Remover Postagem">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            </div>
+            <!-- Carregado via Firebase -->
         </div>
     </main>
 
-    <!-- TELA / MODAL DE ADMINISTRAÇÃO -->
-          <div id="modal-administracao" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4 overflow-y-auto">
+    <!-- MODAL DE ADMINISTRAÇÃO -->
+    <div id="modal-administracao" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4 overflow-y-auto">
         <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden relative my-auto p-6 md:p-8 border-t-4 border-amber-600">
             <button onclick="fecharPaginaAdministracao()" class="absolute top-4 right-4 bg-gray-100 hover:bg-gray-200 text-gray-700 w-10 h-10 rounded-full flex items-center justify-center text-xl transition"><i class="fa-solid fa-xmark"></i></button>
-            
             <div class="text-center mb-6">
                 <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto text-2xl shadow-inner mb-3">
                     <i class="fa-solid fa-church"></i>
@@ -227,52 +182,29 @@
                 <h2 class="text-2xl font-extrabold text-gray-900 uppercase tracking-wide">Administração & Liderança</h2>
                 <p class="text-xs text-amber-600 font-semibold mt-1">Igreja Presbiteriana Renovada do Brasil</p>
             </div>
-
             <div class="space-y-4">
                 <div class="bg-gradient-to-r from-amber-50 to-white p-4 rounded-xl border border-amber-200 shadow-sm flex items-center space-x-4">
-                    <div class="w-12 h-12 bg-amber-600 text-white rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0 shadow">
-                        <i class="fa-solid fa-user-tie"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-lg font-bold text-gray-900">Pastor Valdemir Lemos</h4>
-                        <span class="text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded">Pastor Presidente</span>
-                    </div>
+                    <div class="w-12 h-12 bg-amber-600 text-white rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0 shadow"><i class="fa-solid fa-user-tie"></i></div>
+                    <div><h4 class="text-lg font-bold text-gray-900">Pastor Valdemir Lemos</h4><span class="text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded">Pastor Presidente</span></div>
                 </div>
-
                 <div class="bg-gradient-to-r from-amber-50 to-white p-4 rounded-xl border border-amber-200 shadow-sm flex items-center space-x-4">
-                    <div class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0 shadow">
-                        <i class="fa-solid fa-user-graduate"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-lg font-bold text-gray-900">Missionária Vanessa Lemos</h4>
-                        <span class="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">Missionária</span>
-                    </div>
+                    <div class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0 shadow"><i class="fa-solid fa-user-graduate"></i></div>
+                    <div><h4 class="text-lg font-bold text-gray-900">Missionária Vanessa Lemos</h4><span class="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">Missionária</span></div>
                 </div>
-
                 <div class="bg-gradient-to-r from-gray-50 to-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <h5 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 flex items-center space-x-2">
-                        <i class="fa-solid fa-hands-praying text-amber-600"></i>
-                        <span>Diaconisas</span>
-                    </h5>
+                    <h5 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 flex items-center space-x-2"><i class="fa-solid fa-hands-praying text-amber-600"></i><span>Diaconisas</span></h5>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-xs flex items-center space-x-3">
                             <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-bold"><i class="fa-solid fa-user"></i></div>
-                            <div>
-                                <span class="block font-bold text-sm text-gray-800">Diaconisa Vania</span>
-                                <span class="text-[11px] text-gray-500">Ministério Diaconal</span>
-                            </div>
+                            <div><span class="block font-bold text-sm text-gray-800">Diaconisa Vania</span><span class="text-[11px] text-gray-500">Ministério Diaconal</span></div>
                         </div>
                         <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-xs flex items-center space-x-3">
                             <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-bold"><i class="fa-solid fa-user"></i></div>
-                            <div>
-                                <span class="block font-bold text-sm text-gray-800">Diaconisa Cicera</span>
-                                <span class="text-[11px] text-gray-500">Ministério Diaconal</span>
-                            </div>
+                            <div><span class="block font-bold text-sm text-gray-800">Diaconisa Cicera</span><span class="text-[11px] text-gray-500">Ministério Diaconal</span></div>
                         </div>
                     </div>
                 </div>
             </div>
-
             <div class="mt-6 text-center">
                 <button onclick="fecharPaginaAdministracao()" class="bg-[#1a2b3c] hover:bg-black text-white font-bold px-6 py-2.5 rounded-xl transition text-sm">Voltar ao Início</button>
             </div>
@@ -292,8 +224,8 @@
                 </div>
                 <button onclick="fecharStoryCheio()" class="text-white text-2xl px-2 hover:text-gray-300"><i class="fa-solid fa-xmark"></i></button>
             </div>
-                  </div>
-                     <div class="flex-1 flex items-center justify-center my-4 overflow-hidden relative">
+        </div>
+        <div class="flex-1 flex items-center justify-center my-4 overflow-hidden relative">
             <img id="viewer-img" src="" class="max-h-[75vh] max-w-full object-contain rounded-lg shadow-2xl hidden">
             <video id="viewer-video" src="" class="max-h-[75vh] max-w-full object-contain rounded-lg shadow-2xl hidden" controls autoplay playsinline></video>
         </div>
@@ -318,9 +250,7 @@
         <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
             <button onclick="fecharModalLogin()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
             <div class="text-center mb-6">
-                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2">
-                    <i class="fa-solid fa-user"></i>
-                </div>
+                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fa-solid fa-user"></i></div>
                 <h3 class="text-xl font-bold">Acesso ao Portal</h3>
                 <p class="text-xs text-gray-500">Digite seu e-mail para entrar. (Use <span class="font-semibold text-amber-600">sisialeane@gmail.com</span> para testar o ADM)</p>
             </div>
@@ -345,7 +275,7 @@
             <h3 class="text-xl font-bold mb-4 text-emerald-800"><i class="fa-solid fa-plus-circle"></i> Adicionar Novo Banner</h3>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Foto da Galeria</label>
+                    <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Foto do Banner</label>
                     <input type="file" id="novo-banner-arquivo" accept="image/*" class="w-full px-3 py-2 border rounded-lg bg-gray-50">
                 </div>
                 <div>
@@ -360,30 +290,7 @@
                     <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Descrição</label>
                     <textarea id="novo-banner-desc" rows="3" placeholder="Texto descritivo..." class="w-full px-3 py-2 border rounded-lg"></textarea>
                 </div>
-                <button onclick="salvarNovoBanner()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg transition">Publicar Novo Banner</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE EDIÇÃO DO BANNER -->
-    <div id="modal-edicao" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 relative">
-            <button onclick="fecharModoEdicao()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
-            <h3 class="text-xl font-bold mb-4 text-amber-800"><i class="fa-solid fa-pen-to-square"></i> Editar Banner Atual</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Trocar Foto (Opcional)</label>
-                    <input type="file" id="input-arquivo-galeria" accept="image/*" class="w-full px-3 py-2 border rounded-lg bg-gray-50">
-                </div>
-                <div>
-                                      <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Título</label>
-                    <input type="text" id="edit-titulo" class="w-full px-3 py-2 border rounded-lg">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Descrição</label>
-                    <textarea id="edit-desc" rows="3" class="w-full px-3 py-2 border rounded-lg"></textarea>
-                </div>
-                <button onclick="salvarAlteracoesBanner()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-lg transition">Salvar Alterações</button>
+                <button onclick="salvarNovoBannerFirebase()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg transition">Publicar Banner na Nuvem</button>
             </div>
         </div>
     </div>
@@ -392,7 +299,7 @@
     <div id="modal-story" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
             <button onclick="fecharModalStory()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
-            <h3 class="text-xl font-bold mb-4 text-indigo-800"><i class="fa-solid fa-circle-plus"></i> Postar Story (Foto ou Vídeo)</h3>
+            <h3 class="text-xl font-bold mb-4 text-indigo-800"><i class="fa-solid fa-circle-plus"></i> Postar Story (Nuvem)</h3>
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Selecione Foto ou Vídeo (até 60s)</label>
@@ -402,7 +309,7 @@
                     <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Texto / Legenda</label>
                     <input type="text" id="input-story-texto" placeholder="Ex: Culto de Oração hoje!" class="w-full px-3 py-2 border rounded-lg">
                 </div>
-                <button onclick="publicarStory()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition">Publicar Story Agora</button>
+                <button onclick="publicarStoryFirebase()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition">Publicar Story na Nuvem</button>
             </div>
         </div>
     </div>
@@ -411,15 +318,15 @@
     <div id="modal-noticia" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 relative">
             <button onclick="fecharModalNoticia()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
-            <h3 class="text-xl font-bold mb-4 text-blue-800"><i class="fa-solid fa-newspaper"></i> Adicionar Nova Postagem</h3>
+            <h3 class="text-xl font-bold mb-4 text-blue-800"><i class="fa-solid fa-newspaper"></i> Adicionar Nova Postagem (Nuvem)</h3>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Foto da Galeria</label>
+                    <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Foto da Postagem</label>
                     <input type="file" id="input-noticia-foto" accept="image/*" class="w-full px-3 py-2 border rounded-lg bg-gray-50">
                 </div>
                 <div>
                     <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Categoria e Data</label>
-                    <input type="text" id="input-noticia-categoria" placeholder="Ex: IPRB News · 05/11/2026" class="w-full px-3 py-2 border rounded-lg">
+                    <input type="text" id="input-noticia-categoria" placeholder="Ex: IPRB News · Hoje" class="w-full px-3 py-2 border rounded-lg">
                 </div>
                 <div>
                     <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Título da Postagem</label>
@@ -427,9 +334,9 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold uppercase text-gray-600 mb-1">Texto Completo</label>
-                    <textarea id="input-noticia-desc" rows="4" placeholder="Escreva o texto completo da postagem..." class="w-full px-3 py-2 border rounded-lg"></textarea>
+                    <textarea id="input-noticia-desc" rows="4" placeholder="Escreva o texto completo..." class="w-full px-3 py-2 border rounded-lg"></textarea>
                 </div>
-                <button onclick="publicarNoticia()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition">Publicar Postagem</button>
+                <button onclick="publicarNoticiaFirebase()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition">Publicar Postagem na Nuvem</button>
             </div>
         </div>
     </div>
@@ -439,26 +346,62 @@
         <p>&copy; 2026 Igreja Presbiteriana Renovada do Brasil. Todos os direitos reservados.</p>
     </footer>
 
-    <!-- SCRIPT DE CONTROLE -->
+    <!-- SCRIPT DE INTEGRAÇÃO COM FIREBASE -->
     <script>
-        let banners = [
-            {
-                img: "https://images.unsplash.com/photo-1543165365-0723ac524888?auto=format&fit=crop&w=1200&q=80",
-                tag: "Série 509 Reforma Protestante",
-                titulo: "A Reforma que Ainda Precisa Acontecer em Nós",
-                desc: "No dia 31 de outubro de 1517, o professor Martinho Lutero apresentou 95 teses para provocar uma reflexão..."
-            },
-            {
-                img: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=1200&q=80",
-                tag: "Cuidado Pastoral",
-                titulo: "Levando o Cuidado para Além das Quatro Paredes",
-                desc: "A saúde mental tem ocupado um espaço cada vez mais importante na sociedade e igrejas..."
-            }
-        ];
+        let banners = [];
         let indiceAtual = 0;
         let isAdminLogado = false;
         let intervaloBanner = null;
         let temporizadorStory = null;
+
+        // Carrega dados salvos no Firestore ao abrir o site
+        async function carregarDadosDoFirebase() {
+            try {
+                // Carregar Banners
+                const qBanners = await window.getDocs(window.collection(window.db, "banners"));
+                banners = [];
+                qBanners.forEach((docSnap) => {
+                    banners.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                if (banners.length === 0) {
+                    banners.push({
+                        img: "https://images.unsplash.com/photo-1543165365-0723ac524888?auto=format&fit=crop&w=1200&q=80",
+                        tag: "Série 509 Reforma Protestante",
+                        titulo: "A Reforma que Ainda Precisa Acontecer em Nós",
+                        desc: "No dia 31 de outubro de 1517, o professor Martinho Lutero apresentou 95 teses..."
+                    });
+                }
+                atualizarBannerUI();
+                iniciarCarrosselAutomatico();
+
+                // Carregar Stories
+                const qStories = await window.getDocs(window.collection(window.db, "stories"));
+                const listaStories = document.getElementById('lista-stories');
+                listaStories.innerHTML = '';
+                qStories.forEach((docSnap) => {
+                    const s = docSnap.data();
+                    renderizarStoryUI(docSnap.id, s.url, s.titulo, s.tipo);
+                });
+                if (qStories.empty) {
+                    renderizarStoryUI('padrao1', 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=800&q=80', 'Culto Jovem', 'image');
+                }
+
+                // Carregar Notícias
+                const qNoticias = await window.getDocs(window.collection(window.db, "noticias"));
+                const gridNoticias = document.getElementById('grid-noticias');
+                gridNoticias.innerHTML = '';
+                qNoticias.forEach((docSnap) => {
+                    const n = docSnap.data();
+                    renderizarNoticiaUI(docSnap.id, n.img, n.categoria, n.titulo, n.desc);
+                });
+                if (qNoticias.empty) {
+                    renderizarNoticiaUI('padraoN1', 'https://images.unsplash.com/photo-1491841550275-adcbec37285e?auto=format&fit=crop&w=600&q=80', 'IPRB News · 26/10/2026', 'A Reforma que Ainda Precisa Acontecer em Nós', 'No dia 31 de outubro de 1517, o professor Martinho Lutero apresentou 95 teses...');
+                }
+
+            } catch (erro) {
+                console.error("Erro ao carregar do Firebase: ", erro);
+            }
+        }
 
         function iniciarCarrosselAutomatico() {
             if (intervaloBanner) clearInterval(intervaloBanner);
@@ -479,13 +422,7 @@
 
         function atualizarBannerUI() {
             const bannerSec = document.getElementById('banner-principal');
-            if (banners.length === 0) {
-                bannerSec.style.backgroundImage = `linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.2)), url('https://images.unsplash.com/photo-1438232992991-995b7058bbb3?auto=format&fit=crop&w=1200&q=80')`;
-                document.getElementById('banner-tag').innerText = "Sem Banners";
-                document.getElementById('banner-titulo').innerText = "Nenhum banner cadastrado no momento";
-                document.getElementById('banner-desc').innerText = "Utilize o painel ADM para adicionar novos banners.";
-                return;
-            }
+            if (banners.length === 0) return;
             const b = banners[indiceAtual];
             bannerSec.style.backgroundImage = `linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.2)), url('${b.img}')`;
             document.getElementById('banner-tag').innerText = b.tag;
@@ -500,14 +437,14 @@
             event.preventDefault();
             const email = document.getElementById('input-email').value.trim();
             fecharModalLogin();
-          if (email === "sisialeane@gmail.com") {
+
+            if (email === "sisialeane@gmail.com") {
                 isAdminLogado = true;
                 alert("Login realizado com sucesso! Bem-vinda, Administradora (Sisialeane).");
                 document.getElementById('painel-adm').classList.remove('hidden');
                 document.getElementById('txt-login-btn').innerText = "Sisialeane (ADM)";
                 document.getElementById('btn-login-status').classList.remove('bg-amber-600');
                 document.getElementById('btn-login-status').classList.add('bg-emerald-600');
-                
                 document.querySelectorAll('.btn-del-story, .btn-del-noticia').forEach(btn => btn.classList.remove('hidden'));
             } else {
                 isAdminLogado = false;
@@ -522,148 +459,160 @@
             document.getElementById('txt-login-btn').innerText = "Entrar / Área ADM";
             document.getElementById('btn-login-status').classList.remove('bg-emerald-600');
             document.getElementById('btn-login-status').classList.add('bg-amber-600');
-            
             document.querySelectorAll('.btn-del-story, .btn-del-noticia').forEach(btn => btn.classList.add('hidden'));
             alert("Você saiu da conta.");
         }
 
-        function abrirPaginaAdministracao() {
-            document.getElementById('modal-administracao').classList.remove('hidden');
-        }
-        function fecharPaginaAdministracao() {
-            document.getElementById('modal-administracao').classList.add('hidden');
-        }
+        function abrirPaginaAdministracao() { document.getElementById('modal-administracao').classList.remove('hidden'); }
+        function fecharPaginaAdministracao() { document.getElementById('modal-administracao').classList.add('hidden'); }
 
         function abrirModalNovoBanner() { document.getElementById('modal-novo-banner').classList.remove('hidden'); }
         function fecharModalNovoBanner() { document.getElementById('modal-novo-banner').classList.add('hidden'); }
 
-        function salvarNovoBanner() {
+        async function salvarNovoBannerFirebase() {
             const inputArquivo = document.getElementById('novo-banner-arquivo');
             const tag = document.getElementById('novo-banner-tag').value.trim() || "Novidade";
             const titulo = document.getElementById('novo-banner-titulo').value.trim() || "Novo Título";
             const desc = document.getElementById('novo-banner-desc').value.trim() || "Nova descrição...";
 
             if (inputArquivo.files && inputArquivo.files[0]) {
-                const leitor = new FileReader();
-                leitor.onload = function(e) {
-                    banners.push({ img: e.target.result, tag, titulo, desc });
-                    indiceAtual = banners.length - 1; 
-                    atualizarBannerUI();
+                const arquivo = inputArquivo.files[0];
+                const storageRef = window.ref(window.storage, 'banners/' + Date.now() + '_' + arquivo.name);
+                alert("Enviando banner para a nuvem...");
+                
+                try {
+                    const snapshot = await window.uploadBytes(storageRef, arquivo);
+                    const url = await window.getDownloadURL(snapshot.ref);
+
+                    await window.addDoc(window.collection(window.db, "banners"), { tag, titulo, desc, img: url });
+                    alert("Banner salvo na nuvem com sucesso!");
                     fecharModalNovoBanner();
-                    document.getElementById('novo-banner-tag').value = '';
-                    document.getElementById('novo-banner-titulo').value = '';
-                    document.getElementById('novo-banner-desc').value = '';
-                    inputArquivo.value = '';
-                    alert("Novo banner adicionado com sucesso!");
+                    carregarDadosDoFirebase();
+                } catch (e) {
+                    alert("Erro ao enviar: " + e.message);
                 }
-                leitor.readAsDataURL(inputArquivo.files[0]);
             } else {
-                alert("Por favor, selecione uma foto da galeria para o novo banner.");
-            }
-        }
-
-        function ativarModoEdicao() {
-            if (banners.length === 0) { alert("Não há banners para editar."); return; }
-            const b = banners[indiceAtual];
-            document.getElementById('edit-titulo').value = b.titulo;
-            document.getElementById('edit-desc').value = b.desc;
-            document.getElementById('modal-edicao').classList.remove('hidden');
-        }
-        function fecharModoEdicao() { document.getElementById('modal-edicao').classList.add('hidden'); }
-
-        function salvarAlteracoesBanner() {
-            const inputArquivo = document.getElementById('input-arquivo-galeria');
-            const novoTitulo = document.getElementById('edit-titulo').value;
-            const novaDesc = document.getElementById('edit-desc').value;
-
-            if (banners.length > 0) {
-                if (novoTitulo) banners[indiceAtual].titulo = novoTitulo;
-                if (novaDesc) banners[indiceAtual].desc = novaDesc;
-            }
-
-            if (inputArquivo.files && inputArquivo.files[0]) {
-                const leitor = new FileReader();
-                leitor.onload = function(e) {
-                    banners[indiceAtual].img = e.target.result;
-                    atualizarBannerUI();
-                    fecharModoEdicao();
-                    alert("Banner atualizado com sucesso!");
-                }
-                leitor.readAsDataURL(inputArquivo.files[0]);
-            } else {
-                atualizarBannerUI();
-                fecharModoEdicao();
-                alert("Alterações salvas com sucesso!");
-            }
-        }
-
-        function removerBannerAtual() {
-            if (banners.length === 0) { alert("Não há banners para remover."); return; }
-            if (confirm("Tem certeza que deseja remover este banner?")) {
-                banners.splice(indiceAtual, 1);
-                if (indiceAtual >= banners.length) indiceAtual = banners.length - 1;
-                if (indiceAtual < 0) indiceAtual = 0;
-                atualizarBannerUI();
-                alert("Banner removido com sucesso!");
+                alert("Selecione uma imagem para o banner.");
             }
         }
 
         function abrirModalStory() { document.getElementById('modal-story').classList.remove('hidden'); }
         function fecharModalStory() { document.getElementById('modal-story').classList.add('hidden'); }
 
-        function publicarStory() {
+        async function publicarStoryFirebase() {
             const inputArquivo = document.getElementById('input-story-arquivo');
             const textoStory = document.getElementById('input-story-texto').value.trim() || "Novo Story";
 
             if (inputArquivo.files && inputArquivo.files[0]) {
                 const arquivo = inputArquivo.files[0];
-                const tipoArquivo = arquivo.type.startsWith('video') ? 'video' : 'image';
-                const leitor = new FileReader();
+                const tipo = arquivo.type.startsWith('video') ? 'video' : 'image';
+                const storageRef = window.ref(window.storage, 'stories/' + Date.now() + '_' + arquivo.name);
+                alert("Enviando arquivo para o Firebase Storage...");
 
-                leitor.onload = function(e) {
-                    const urlArquivo = e.target.result;
-                    const lista = document.getElementById('lista-stories');
-                    const novoItem = document.createElement('div');
-                    novoItem.className = "story-item flex-shrink-0 text-center cursor-pointer group relative";
-                    
-                    const safeTitulo = textoStory.replace(/'/g, "\\'");
-                    const safeUrl = urlArquivo.replace(/'/g, "\\'");
+                try {
+                    const snapshot = await window.uploadBytes(storageRef, arquivo);
+                    const url = await window.getDownloadURL(snapshot.ref);
 
-                    novoItem.setAttribute('onclick', `abrirStoryCheio('${safeUrl}', '${safeTitulo}', '${tipoArquivo}')`);
-                    const classeBtnDel = isAdminLogado ? "" : "hidden";
-
-                    let miniaturaHtml = '';
-                    if (tipoArquivo === 'video') {
-                        miniaturaHtml = `<video src="${urlArquivo}" class="w-full h-full object-cover rounded-full border-2 border-white" muted></video>`;
-                    } else {
-                        miniaturaHtml = `<img src="${urlArquivo}" class="w-full h-full object-cover rounded-full border-2 border-white">`;
-                    }
-
-                    novoItem.innerHTML = `
-                        <div class="w-20 h-20 rounded-full p-[3px] bg-gradient-to-tr from-amber-500 to-indigo-600 shadow-md group-hover:scale-105 transition">
-                            ${miniaturaHtml}
-                        </div>
-                        <span class="text-xs font-semibold mt-1 block w-20 truncate">${textoStory}</span>
-                        <button onclick="event.stopPropagation(); removerStory(this)" class="btn-del-story ${classeBtnDel} absolute top-0 right-0 bg-red-600 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center shadow-md hover:bg-red-700" title="Remover Story">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    `;
-                    lista.appendChild(novoItem);
+                    await window.addDoc(window.collection(window.db, "stories"), { url, titulo: textoStory, tipo });
+                    alert("Story publicado na nuvem com sucesso!");
                     fecharModalStory();
-                    document.getElementById('input-story-texto').value = '';
-                    inputArquivo.value = '';
-                    alert("Story publicado com sucesso!");
+                    carregarDadosDoFirebase();
+                } catch (e) {
+                    alert("Erro ao enviar: " + e.message);
                 }
-                leitor.readAsDataURL(arquivo);
             } else {
-                alert("Selecione uma foto ou um vídeo para o story.");
+                alert("Selecione um arquivo de foto ou vídeo.");
             }
         }
 
-        function removerStory(botao) {
-            if (confirm("Deseja apagar este story?")) {
-                botao.closest('.story-item').remove();
-                alert("Story removido com sucesso!");
+        function renderizarStoryUI(id, url, titulo, tipo) {
+            const lista = document.getElementById('lista-stories');
+            const novoItem = document.createElement('div');
+            novoItem.className = "story-item flex-shrink-0 text-center cursor-pointer group relative";
+            novoItem.setAttribute('onclick', `abrirStoryCheio('${url}', '${titulo}', '${tipo}')`);
+            const classeBtnDel = isAdminLogado ? "" : "hidden";
+
+            let miniaturaHtml = tipo === 'video' 
+                ? `<video src="${url}" class="w-full h-full object-cover rounded-full border-2 border-white" muted></video>` 
+                : `<img src="${url}" class="w-full h-full object-cover rounded-full border-2 border-white">`;
+
+            novoItem.innerHTML = `
+                <div class="w-20 h-20 rounded-full p-[3px] bg-gradient-to-tr from-amber-500 to-indigo-600 shadow-md group-hover:scale-105 transition">
+                    ${miniaturaHtml}
+                </div>
+                <span class="text-xs font-semibold mt-1 block w-20 truncate">${titulo}</span>
+                <button onclick="event.stopPropagation(); apagarDoFirebase('stories', '${id}')" class="btn-del-story ${classeBtnDel} absolute top-0 right-0 bg-red-600 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center shadow-md hover:bg-red-700" title="Remover">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+            lista.appendChild(novoItem);
+        }
+
+        function abrirModalNoticia() { document.getElementById('modal-noticia').classList.remove('hidden'); }
+        function fecharModalNoticia() { document.getElementById('modal-noticia').classList.add('hidden'); }
+
+        async function publicarNoticiaFirebase() {
+            const inputFoto = document.getElementById('input-noticia-foto');
+            const categoria = document.getElementById('input-noticia-categoria').value.trim() || "IPRB News · Hoje";
+            const titulo = document.getElementById('input-noticia-titulo').value.trim() || "Nova Postagem";
+            const desc = document.getElementById('input-noticia-desc').value.trim() || "Texto...";
+
+            if (inputFoto.files && inputFoto.files[0]) {
+                const arquivo = inputFoto.files[0];
+                const storageRef = window.ref(window.storage, 'noticias/' + Date.now() + '_' + arquivo.name);
+                alert("Enviando postagem para a nuvem...");
+
+                try {
+                    const snapshot = await window.uploadBytes(storageRef, arquivo);
+                    const imgUrl = await window.getDownloadURL(snapshot.ref);
+
+                    await window.addDoc(window.collection(window.db, "noticias"), { img: imgUrl, categoria, titulo, desc });
+                    alert("Postagem salva na nuvem com sucesso!");
+                    fecharModalNoticia();
+                    carregarDadosDoFirebase();
+                } catch (e) {
+                    alert("Erro ao enviar: " + e.message);
+                }
+            } else {
+                alert("Selecione uma foto para a postagem.");
+            }
+        }
+
+        function renderizarNoticiaUI(id, imgUrl, categoria, titulo, desc) {
+            const grid = document.getElementById('grid-noticias');
+            const novoCard = document.createElement('div');
+            novoCard.className = "noticia-item bg-white rounded-lg shadow overflow-hidden border border-gray-100 cursor-pointer group relative";
+            
+            const safeTitulo = titulo.replace(/'/g, "\\'");
+            const safeDesc = desc.replace(/'/g, "\\'").replace(/\n/g, '\\n');
+            const safeCat = categoria.replace(/'/g, "\\'");
+
+            novoCard.setAttribute('onclick', `abrirNoticiaCheia('${imgUrl}', '${safeCat}', '${safeTitulo}', '${safeDesc}')`);
+            const classeBtnDel = isAdminLogado ? "" : "hidden";
+
+            novoCard.innerHTML = `
+                <img src="${imgUrl}" alt="Notícia" class="w-full h-48 object-cover group-hover:scale-105 transition duration-300">
+                <div class="p-5">
+                    <span class="text-xs font-bold text-amber-600 uppercase">${categoria}</span>
+                    <h4 class="font-bold text-lg mt-1 mb-2">${titulo}</h4>
+                    <p class="text-sm text-gray-600 line-clamp-2">${desc}</p>
+                </div>
+                <button onclick="event.stopPropagation(); apagarDoFirebase('noticias', '${id}')" class="btn-del-noticia ${classeBtnDel} absolute top-2 right-2 bg-red-600 text-white w-8 h-8 rounded-full text-sm flex items-center justify-center shadow-lg hover:bg-red-700" title="Remover">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            `;
+            grid.prepend(novoCard);
+        }
+
+        async function apagarDoFirebase(colecao, id) {
+            if (confirm("Deseja realmente apagar este item da nuvem?")) {
+                try {
+                    await window.deleteDoc(window.doc(window.db, colecao, id));
+                    alert("Removido com sucesso!");
+                    carregarDadosDoFirebase();
+                } catch (e) {
+                    alert("Erro ao remover: " + e.message);
+                }
             }
         }
 
@@ -704,64 +653,6 @@
             if (temporizadorStory) clearTimeout(temporizadorStory);
         }
 
-        function abrirModalNoticia() { document.getElementById('modal-noticia').classList.remove('hidden'); }
-        function fecharModalNoticia() { document.getElementById('modal-noticia').classList.add('hidden'); }
-
-        function publicarNoticia() {
-            const inputFoto = document.getElementById('input-noticia-foto');
-            const categoria = document.getElementById('input-noticia-categoria').value.trim() || "IPRB News · Hoje";
-            const titulo = document.getElementById('input-noticia-titulo').value.trim() || "Nova Postagem";
-            const desc = document.getElementById('input-noticia-desc').value.trim() || "Texto da postagem...";
-
-            if (inputFoto.files && inputFoto.files[0]) {
-                const leitor = new FileReader();
-                leitor.onload = function(e) {
-                    const urlFoto = e.target.result;
-                    const grid = document.getElementById('grid-noticias');
-                    const novoCard = document.createElement('div');
-                    novoCard.className = "noticia-item bg-white rounded-lg shadow overflow-hidden border border-gray-100 cursor-pointer group relative";
-                    
-                    const safeTitulo = titulo.replace(/'/g, "\\'");
-                    const safeDesc = desc.replace(/'/g, "\\'").replace(/\n/g, '\\n');
-                    const safeCat = categoria.replace(/'/g, "\\'");
-
-                    novoCard.setAttribute('onclick', `abrirNoticiaCheia('${urlFoto}', '${safeCat}', '${safeTitulo}', '${safeDesc}')`);
-
-                    const classeBtnDel = isAdminLogado ? "" : "hidden";
-
-                    novoCard.innerHTML = `
-                        <img src="${urlFoto}" alt="Notícia" class="w-full h-48 object-cover group-hover:scale-105 transition duration-300">
-                        <div class="p-5">
-                            <span class="text-xs font-bold text-amber-600 uppercase">${categoria}</span>
-                            <h4 class="font-bold text-lg mt-1 mb-2">${titulo}</h4>
-                            <p class="text-sm text-gray-600 line-clamp-2">${desc}</p>
-                        </div>
-                        <button onclick="event.stopPropagation(); removerNoticia(this)" class="btn-del-noticia ${classeBtnDel} absolute top-2 right-2 bg-red-600 text-white w-8 h-8 rounded-full text-sm flex items-center justify-center shadow-lg hover:bg-red-700" title="Remover Postagem">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    `;
-                    grid.prepend(novoCard);
-                    fecharModalNoticia();
-
-                    document.getElementById('input-noticia-categoria').value = '';
-                    document.getElementById('input-noticia-titulo').value = '';
-                    document.getElementById('input-noticia-desc').value = '';
-                    inputFoto.value = '';
-                    alert("Postagem publicada com sucesso!");
-                }
-                leitor.readAsDataURL(inputFoto.files[0]);
-            } else {
-                alert("Selecione uma foto da galeria para a postagem.");
-            }
-        }
-
-        function removerNoticia(botao) {
-            if (confirm("Deseja realmente apagar esta postagem?")) {
-                botao.closest('.noticia-item').remove();
-                alert("Postagem removida com sucesso!");
-            }
-        }
-
         function abrirNoticiaCheia(imgUrl, categoria, titulo, desc) {
             document.getElementById('modal-noticia-img').src = imgUrl;
             document.getElementById('modal-noticia-data').innerText = categoria;
@@ -773,9 +664,6 @@
         function fecharNoticiaCheia() {
             document.getElementById('viewer-noticia').classList.add('hidden');
         }
-
-        iniciarCarrosselAutomatico();
     </script>
 </body>
 </html>
-  
